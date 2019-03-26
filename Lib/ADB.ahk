@@ -1,58 +1,113 @@
 ﻿class ADB {
-	_ADB_DeviceAddress := "127.0.0.1:62001"	; Nox VM
-	_ADB_Path := "Lib\adb.exe"
-	_Codepage := "CP65001"
+	__DeviceAddress := "127.0.0.1:62001"	; Default
+	__ADB_Path := "Lib\adb.exe"
+	__Codepage := "CP65001"
 
 	__New(adbpath := "") {
 		this.connected := 0
 		if(adbpath)
-			this._ADB_Path := adbpath
+			this.__ADB_Path := adbpath
+		Log(this.__ADB_Path)
 	}
 
 	Connect(addr := "") {
 		if(!addr)
-			addr := this._ADB_DeviceAddress
-		return this.ADBcmd("connect", addr)
+			addr := this.__DeviceAddress
+		else
+			this.__DeviceAddress := addr
+		out := this.ADBcmd("connect", addr)
+		Log("[{}()] {}", A_ThisFunc, out)
+		this.serialno := serialno1
+		return serialno1
 	}
 
 	DisConnect() {
-		return this.ADBcmd("disconnect")
+		out := this.ADBcmd("disconnect")
+		Log("[{}()] {}", A_ThisFunc, out)
+		return out
 	}
 
-	ScreenCap(ByRef output) {
-		fullcmd := this._ADB_Path . " exec-out screencap -p"
-		RunWait, % fullcmd,, Hide,, output, oSize	; AutoHotKey+ Only
-		return oSize
+	ReConnect() {
+		out := this.ADBcmd("reconnect")
+		Log("[{}()] {}", A_ThisFunc, out)
+		return out
 	}
+	ScreenCap(sOut) {
+		adbcmd := this.__ADB_Path . " exec-out screencap -p"
+		VarSetCapacity(sOut, 1048576)
+		nSize := StdoutToVar_Blob(adbcmd, sOut, 0)
 
+	h := FileOpen("res.png", "w")
+	h.RawWrite(&sOut, nSize)
+	h.Close()
+
+		return nSize
+	}
 	ScreenCapHBitmap() {
-		adbcmd := this._ADB_Path . " exec-out screencap -p"
-		RunWait, % adbcmd,, Hide,, cap, nSize	; AutoHotKey+ Only
+		adbcmd := this.__ADB_Path . " exec-out screencap -p"
 
-		Log("adb screencap {} bytes png", nSize)
+		;VarSetCapacity(sOut, 1048576)
+		nSize := StdoutToVar_Blob(adbcmd, sOut, 0)
 
 		; Gdip create hBitmap from stream
-		hData := DllCall("GlobalAlloc", UInt,2, UInt, nSize )
-		pData := DllCall("GlobalLock",  UInt, hData, Ptr )
-		DllCall( "RtlMoveMemory", Ptr, pData, Ptr, &cap, UInt,nSize )
-		DllCall( "GlobalUnlock", UInt,hData )
-		rc3 := DllCall("ole32\CreateStreamOnHGlobal", ptr, hData, int, 1, ptrP, pStream)
+;		hData := DllCall("HeapAlloc", "ptr", DllCall("GetProcessHeap", "ptr"), "uint", 0, "UInt", 2048000, "ptr")
 
-		gst3 := DllCall("gdiplus\GdipCreateBitmapFromStream", ptr, pStream, ptrP, pBitmap)       
+;		DllCall("RtlMoveMemory", Ptr, hData, Ptr, &bOutput, UInt, nSize)
+		rc3 := DllCall("ole32\CreateStreamOnHGlobal", Ptr, &sOut, Int, 1, PtrP, pStream)
+		gst3 := DllCall("gdiplus\GdipCreateBitmapFromStream", Ptr, pStream, PtrP, pBitmap)       
+		gst4 := DllCall("gdiplus\GdipCreateHBITMAPFromBitmap", Ptr, pBitmap, PtrP, hBitmap, UInt, 8)
+		DllCall("gdiplus\GdipDisposeImage", UInt, pBitmap)
 
-		gst4 := DllCall( "gdiplus\GdipCreateHBITMAPFromBitmap", Ptr,pBitmap, PtrP, hBitmap, UInt,8 )
-	 
-		DllCall( "gdiplus\GdipDisposeImage", UInt,pBitmap )
+;		DllCall("HeapFree", "ptr", DllCall("GetProcessHeap", "ptr"), "uint", 0, "ptr", hData)
 
 		return hBitmap
+	}
+/*
+	ScreenCapHBitmap() {
+		adbcmd := this.__ADB_Path . " exec-out screencap -p"
+		RunWait, % adbcmd,, Hide,, cap, nSize	; AutoHotKey+ Only
+
+		Log("[{}()] screencap {} KB", A_ThisFunc, nSize//1024)
+
+		; Gdip create hBitmap from stream
+		hData := DllCall("HeapAlloc", "ptr", DllCall("GetProcessHeap", "ptr"), "uint", 0, "UInt", 2048000, "ptr")
+		DllCall("RtlMoveMemory", Ptr, hData, Ptr, &bOutput, UInt, nSize)
+
+		rc3 := DllCall("ole32\CreateStreamOnHGlobal", Ptr, hData, Int, 1, PtrP, pStream)
+		gst3 := DllCall("gdiplus\GdipCreateBitmapFromStream", Ptr, pStream, PtrP, pBitmap)       
+		gst4 := DllCall( "gdiplus\GdipCreateHBITMAPFromBitmap", Ptr, pBitmap, PtrP, hBitmap, UInt, 8)
+		DllCall("gdiplus\GdipDisposeImage", UInt, pBitmap)
+
+		return hBitmap
+	}
+*/
+	Tap(x, y) {
+		Log("[{}()] ({}, {})", A_ThisFunc, x, y)
+		this.ADBcmd("shell input tap", x, y)
+	}
+
+	Swipe(x1, y1, x2, y2, delay) {
+		Log("[{}()] ({}, {}) -> ({}, {}) {}ms", A_ThisFunc, x1, y1, x2, y2, delay)
+		this.ADBcmd("shell input swipe", x1, y1, x2, y2, delay)
 	}
 
 	ADBcmd(params*) {
 		for i, param in params
 			cmd .= " " . param
-		adbcmd := this._ADB_Path . cmd
-		RunWait, % adbcmd,, Hide,, output, oSize	; AutoHotKey+ Only
-		return StrGet(&output, this._Codepage)
+		adbcmd := this.__ADB_Path . cmd
+		;RunWait, % adbcmd,, Hide,, output, oSize	; AutoHotKey+ Only
+		StdoutToVar_Blob(adbcmd, output, "CP65001")
+		;output := RTrim(output, " `t`r`n")
+		return output
 	}
 
+}
+
+class NoxADB extends ADB {
+	__DeviceAddress := "127.0.0.1:62001"	; Nox VM1 default
+	__New() {
+		RegRead, noxfullpath, HKCR, Nox\Shell\Open\Command
+		RegExMatch(noxfullpath, "(.*)\\Nox.exe", noxpath)
+		base.__New(noxpath1 . "\nox_adb.exe")
+	}
 }

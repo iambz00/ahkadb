@@ -1,6 +1,5 @@
 ﻿class Run {
 	__New() {
-		Log(A_ThisFunc)
 		this.bufferSize := 4096
 		this.allocSize := 16 * this.bufferSize
 		this.PtrAlloc()
@@ -8,8 +7,11 @@
 		return this
 	}
 	__Delete() {
-		Log(A_ThisFunc)
 		this.PtrFree()
+	}
+	Free(ptr) {
+		if(ptr)
+			DllCall("HeapFree", "Ptr", DllCall("GetProcessHeap", "Ptr"), "UInt", 0, "Ptr", ptr)
 	}
 	PtrAlloc() {
 		if(!this.ptr)
@@ -67,20 +69,21 @@
 		Return this
 	}
 	GetText(encoding:="CP65001") {
-		Log("ptr:{}", this.ptr)
-		Log("size:{}",this.size)
-		Log("allocSize:{}",this.allocSize)
 		if(this.ptr) {
 			text := StrGet(this.ptr, this.size, encoding)
 			return text
 		}
 	}
-	GetBinary() {
+	GetPtrRaw() {
+		if(this.ptr) {
+			return this.ptr
+		}
+	}
+	GetPtr() {
 		if(this.ptr) {
 			retPtr := DllCall("HeapAlloc", "Ptr", DllCall("GetProcessHeap", "Ptr")
 								, "UInt", 0, "UInt", this.size, "Ptr")
 			DllCall("RtlMoveMemory", "Ptr", retPtr, "Ptr", this.ptr, "UInt", this.size)
-			Log("retPtr: {}", retPtr)
 			return retPtr
 		}
 	}

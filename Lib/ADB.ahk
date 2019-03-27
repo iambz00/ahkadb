@@ -62,25 +62,6 @@
 
 		return hBitmap
 	}
-/*
-	ScreenCapHBitmap() {
-		adbcmd := this.__ADB_Path . " exec-out screencap -p"
-		RunWait, % adbcmd,, Hide,, cap, nSize	; AutoHotKey+ Only
-
-		Log("[{}()] screencap {} KB", A_ThisFunc, nSize//1024)
-
-		; Gdip create hBitmap from stream
-		hData := DllCall("HeapAlloc", "ptr", DllCall("GetProcessHeap", "ptr"), "uint", 0, "UInt", 2048000, "ptr")
-		DllCall("RtlMoveMemory", Ptr, hData, Ptr, &bOutput, UInt, nSize)
-
-		rc3 := DllCall("ole32\CreateStreamOnHGlobal", Ptr, hData, Int, 1, PtrP, pStream)
-		gst3 := DllCall("gdiplus\GdipCreateBitmapFromStream", Ptr, pStream, PtrP, pBitmap)       
-		gst4 := DllCall( "gdiplus\GdipCreateHBITMAPFromBitmap", Ptr, pBitmap, PtrP, hBitmap, UInt, 8)
-		DllCall("gdiplus\GdipDisposeImage", UInt, pBitmap)
-
-		return hBitmap
-	}
-*/
 	Tap(x, y) {
 		Log("[{}()] ({}, {})", A_ThisFunc, x, y)
 		this.ADBcmd("shell input tap", x, y)
@@ -95,10 +76,13 @@
 		for i, param in params
 			cmd .= " " . param
 		adbcmd := this.__ADB_Path . cmd
-		;RunWait, % adbcmd,, Hide,, output, oSize	; AutoHotKey+ Only
-		StdoutToVar_Blob(adbcmd, output, "CP65001")
-		;output := RTrim(output, " `t`r`n")
-		return output
+		;n := StdoutToVar_Blob(adbcmd, output, "CP65001",, exitCode)
+		;VarSetCapacity(output, 4096)
+		output := DllCall("HeapAlloc", "ptr", DllCall("GetProcessHeap", "ptr"), "uint", 0, "UInt", 4096, "ptr")
+		n := Run_GetPtr2(adbcmd, output,, exitCode)
+		nExitCode := exitCode
+		Log("exit code: {}", exitCode)
+		return StrGet(output, n, "CP65001")
 	}
 
 }

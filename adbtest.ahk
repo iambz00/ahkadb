@@ -77,6 +77,7 @@ EndDraw:
 	Log(A_ThisLabel)
 Return
 #Include <ADB>
+#Include <Run>
 Stop:
 	adb.DisConnect()
 Return
@@ -84,10 +85,16 @@ Start:
 	adb.Connect()
 Return
 Get:
-	hBitmap := adb.ScreenCapHBitmap()
-	GuiControl,,%hPic%, *w%w% *h%h% HBITMAP:%hBitmap%
-
+	;hBitmap := adb.ScreenCapHBitmap()
+	;GuiControl,,%hPic%, *w%w% *h%h% HBITMAP:%hBitmap%
+	;r := Run_GetPtr("D:\Nox\bin\nox_adb.exe devices")
+	r := Run_GetPtr("D:\Nox\bin\nox_adb.exe exec-out screencap -p")
+	;Log(StrGet(r.ptr, r.size, "CP65001"))
+	Log("size {}/{}", r.size, r.alloc)
 Return
 Get2:
-	nSize := adb.ScreenCap(cap)
+	r := New Run()
+	r.Run("D:\Nox\bin\nox_adb.exe devices")
+	Log(r.GetText())
+	DeleteObject(r)
 Return
